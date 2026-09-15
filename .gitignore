@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (crudo/procesado, se regenera desde la API)
+fase-1/data/raw/*
+fase-2/data/raw/*
+!**/data/raw/.gitkeep
+fase-1/data/processed/*
+fase-2/data/processed/*
+!**/data/processed/.gitkeep
+*.csv
+*.json
+!fase-1/docs/**/*.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
