@@ -2,13 +2,13 @@
 
 ## Objetivo
 
-Construir un modelo de Machine Learning capaz de predecir la **duración de un viaje de bus** (en horas) en la Terminal de Transporte, a partir de datos disponibles al momento de la salida.
+Construir un modelo de Machine Learning capaz de predecir la **duración de un viaje** (en horas) en la Terminal de Transporte, a partir de datos disponibles al momento de la salida.
 
 ## Estado actual
 
-- [x] Selección del problema y verificación del dataset — [`docs/01-seleccion-del-problema.md`](docs/01-seleccion-del-problema.md)
-- [ ] Exploración de datos (EDA)
-- [ ] Preparación de datos (limpieza, manejo de nulos, evitar fuga de información)
+- [x] Selección del problema y verificación del dataset
+- [x] Exploración de datos (EDA) — `notebooks/01-exploracion-datos.ipynb`
+- [x] Preparación de datos (limpieza, manejo de nulos, evitar fuga de información) — `notebooks/02-preparacion-datos.ipynb`
 - [ ] Entrenamiento y evaluación del modelo
 - [ ] Guardado del modelo
 
@@ -16,13 +16,13 @@ Construir un modelo de Machine Learning capaz de predecir la **duración de un v
 
 ```
 data/
-  raw/          Datos crudos descargados de la API (no versionados)
-  processed/    Datos limpios/transformados (no versionados)
+  raw/          Datos crudos descargados de la API (no versionados, se regeneran con el notebook 1)
+  processed/    Datos limpios/transformados (no versionados, se regeneran con el notebook 2)
 notebooks/      Notebooks ejecutables de exploración y modelado
 models/         Modelo(s) entrenado(s) serializado(s)
-docs/           Documentación de decisiones tomadas en esta fase
+docs/           Notas de trabajo personales (no versionadas, no forman parte del repositorio)
 ```
 
 ## Variable objetivo
 
-`duracion_viaje_horas` = (`fecha_llegada` − `fecha_salida`) en horas. Ver justificación completa y por qué no es series de tiempo en [`docs/01-seleccion-del-problema.md`](docs/01-seleccion-del-problema.md).
+`duracion_viaje_horas`, calculada con `hora_de_llegada` y `fecha_hora_salida_origen` (con respaldo en `fecha_salida` cuando falta) — ver el notebook de exploración (Paso 6) para la justificación completa de por qué no se usa directamente `fecha_llegada - fecha_salida`.
