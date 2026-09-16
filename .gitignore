@@ -19,7 +19,12 @@ fase-2/data/processed/*
 !**/data/processed/.gitkeep
 *.csv
 *.json
-!fase-1/docs/**/*.json
+
+# Notas de trabajo personales (no son la documentación oficial del repo)
+fase-1/docs/
+fase-2/docs/
+fase-3/docs/
+fase-4/docs/
 
 # OS / editor
 .DS_Store
