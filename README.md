@@ -16,6 +16,7 @@ Predecir la **duración de un viaje** (en horas) entre la salida y la llegada a 
 - **Fuente:** [Datos Abiertos Colombia — Llegadas y Salidas de Vehículos de la Terminal de Transporte](https://www.datos.gov.co/Transporte/Llegada-y-Salidas-de-Veh-culos-de-la-Terminal-de-T/pfsr-mdyi/about_data) (recurso `pfsr-mdyi`)
 - **Acceso:** API SoQL (`https://www.datos.gov.co/resource/pfsr-mdyi.json`), sin necesidad de descarga manual en CSV.
 - **Alcance:** todas las clases de vehículo (BUS, MICROBUS, CAMIONETA, AUTOMOVIL, DUO BUS), conjunto completo: 2.617.130 registros (2023–2025).
+- **Copia en el repositorio:** los datos crudos y los conjuntos de entrenamiento y prueba se incluyen comprimidos (`.csv.gz`) en `fase-1/data/`; ver [`fase-1/README.md`](fase-1/README.md) para cómo leerlos.
 
 ## Estructura del repositorio
 

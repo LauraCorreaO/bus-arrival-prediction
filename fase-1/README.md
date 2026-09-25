@@ -43,13 +43,36 @@ pip install -r requirements.txt
 jupyter notebook fase-1/notebooks/
 ```
 
-Ejecutar los notebooks **en orden y de principio a fin**: primero `01-exploracion-datos.ipynb` (descarga los datos completos a `data/raw/`; tarda unos minutos) y luego `02-preparacion-datos.ipynb` (genera `train.csv` y `test.csv` en `data/processed/`). Los archivos de datos no se versionan: se regeneran al ejecutar los notebooks.
+Ejecutar los notebooks **en orden y de principio a fin**: primero `01-exploracion-datos.ipynb` (descarga los datos completos a `data/raw/`; tarda unos minutos) y luego `02-preparacion-datos.ipynb` (genera `train.csv` y `test.csv` en `data/processed/`).
+
+### Datos incluidos en el repositorio
+
+El repositorio incluye una copia de los datos, **comprimida** (`.csv.gz`) porque los CSV originales superan el límite de 100 MB de GitHub:
+
+| Archivo | Contenido |
+|---|---|
+| `data/raw/datos_completos.csv.gz` | Datos crudos completos descargados de la API (2.617.130 filas) |
+| `data/processed/train.csv.gz` | Conjunto de entrenamiento (80 %) |
+| `data/processed/test.csv.gz` | Conjunto de prueba (20 %) |
+
+Para modelar no hace falta ejecutar los notebooks 01 y 02: pandas lee los archivos comprimidos directamente.
+
+```python
+import pandas as pd
+
+train = pd.read_csv("fase-1/data/processed/train.csv.gz")
+test = pd.read_csv("fase-1/data/processed/test.csv.gz")
+```
+
+Las predictoras son `nombre_sucursal`, `empresa`, `ruta_origen`, `subregi_n`, `clase_veh_culo`, `pasajeros`, `hora_salida_decimal`, `dia_semana` y `mes`; el objetivo es `duracion_viaje_horas`. La columna `duracion_corregida` **no es una predictora** (se deriva del objetivo): solo sirve para evaluar el modelo sobre las filas no corregidas.
+
+Los `.csv` sin comprimir no se versionan; se generan al ejecutar los notebooks. Si se vuelven a ejecutar y cambian los datos, hay que volver a comprimirlos y subirlos.
 
 ## Estructura
 
 ```
-data/raw/        Datos descargados de la API (no versionados)
-data/processed/  Conjuntos de entrenamiento y prueba (no versionados)
+data/raw/        Datos descargados de la API (versionados comprimidos, .csv.gz)
+data/processed/  Conjuntos de entrenamiento y prueba (versionados comprimidos, .csv.gz)
 notebooks/       Notebooks ejecutables
 models/          Modelo entrenado
 ```
