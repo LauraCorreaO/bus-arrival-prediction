@@ -17,33 +17,30 @@ Predecir la **duración de un viaje** (en horas) entre su salida y su llegada a 
 
 Estimar el tiempo de viaje (ETA) de un vehículo que acaba de salir hacia la terminal, antes de que llegue.
 
-## Algoritmo utilizado
+## Selección y evaluación
 
+La selección de algoritmo y de inclusión de `pasajeros` se realiza con una validación interna derivada únicamente del conjunto de entrenamiento. El test reservado no se consulta en los notebooks 03 y 04. El notebook 05 cierra la selección por MAE de validación, reajusta el candidato con todo el entrenamiento y calcula una sola evaluación final en test.
 
+Se reportan MAE, RMSE y R² sobre las duraciones observadas. Las etiquetas positivas largas se conservan; una duración superior a la mediana de ruta más 12 horas no basta para confirmar un error. No se sustituyen objetivos por medianas. Se excluyen filas sin una salida o duración calculable, duraciones no positivas como errores confirmados y salidas fuera del período documentado (2023–2025), usando exclusivamente la fecha de salida para esa exclusión.
 
-## Métrica empleada
-
-
-
-## Principales resultados
-
-
+El patrón temporal de faltantes de `fecha_hora_salida_origen` (33,434 %) se informa como observado, pero no se interpreta por sí solo como evidencia de MCAR, MAR o MNAR. Se usa `fecha_salida` como fuente alternativa para derivar la salida cuando está disponible.
 
 ## Estado
 
 - [x] Exploración de datos — `notebooks/01-exploracion-datos.ipynb`
-- [x] Preparación de datos — `notebooks/02-preparacion-datos.ipynb`
-- [ ] Modelo base y modelo predictivo
-- [ ] Guardado del modelo
+- [x] Preparación de datos reproducible — `notebooks/02-preparacion-datos.ipynb`
+- [x] Baseline, comparación y selección en validación — notebooks 03–05
+- [x] Implementación de la evaluación final y exportación del pipeline
 
 ## Cómo ejecutar
 
 ```bash
+# Python 3.13.x
 pip install -r requirements.txt
 jupyter notebook fase-1/notebooks/
 ```
 
-Ejecutar los notebooks **en orden y de principio a fin**: primero `01-exploracion-datos.ipynb` (descarga los datos completos a `data/raw/`; tarda unos minutos) y luego `02-preparacion-datos.ipynb` (genera `train.csv` y `test.csv` en `data/processed/`).
+Ejecutar los notebooks **en orden**: primero `01-exploracion-datos.ipynb` si se desea volver a descargar los datos, luego `02-preparacion-datos.ipynb` para generar los archivos de entrenamiento y prueba, después 03 y 04 para validación exploratoria, y por último 05 para selección y evaluación final.
 
 ### Datos incluidos en el repositorio
 
@@ -53,20 +50,21 @@ El repositorio incluye una copia de los datos, **comprimida** (`.csv.gz`) porque
 |---|---|
 | `data/raw/datos_completos.csv.gz` | Datos crudos completos descargados de la API (2.617.130 filas) |
 | `data/processed/train.csv.gz` | Conjunto de entrenamiento (80 %) |
-| `data/processed/test.csv.gz` | Conjunto de prueba (20 %) |
+| `data/processed/test.csv.gz` | Test reservado (20 %), usado solo en la evaluación final |
 
-Para modelar no hace falta ejecutar los notebooks 01 y 02: pandas lee los archivos comprimidos directamente.
+Los conjuntos procesados incluidos se pueden leer directamente para reproducir el análisis. Ejecuta 02 cada vez que regeneres la fuente o quieras incorporar cambios de preparación. Durante la selección solo se usa train; el acceso a test se deja al paso final del notebook 05.
 
 ```python
 import pandas as pd
 
 train = pd.read_csv("fase-1/data/processed/train.csv.gz")
-test = pd.read_csv("fase-1/data/processed/test.csv.gz")
 ```
 
-Las predictoras son `nombre_sucursal`, `empresa`, `ruta_origen`, `subregi_n`, `clase_veh_culo`, `pasajeros`, `hora_salida_decimal`, `dia_semana` y `mes`; el objetivo es `duracion_viaje_horas`. La columna `duracion_corregida` **no es una predictora** (se deriva del objetivo): solo sirve para evaluar el modelo sobre las filas no corregidas.
+Las predictoras son `nombre_sucursal`, `empresa`, `ruta_origen`, `subregi_n`, `clase_veh_culo`, `pasajeros`, `hora_salida_decimal`, `dia_semana` y `mes`; el objetivo observado es `duracion_viaje_horas`, en horas. `duracion_original` conserva una copia auditable de la etiqueta y nunca es predictora. Las fechas y horas de llegada se usan únicamente para calcular el objetivo y se excluyen de las entradas del modelo. `hora_salida_decimal`, `dia_semana` y `mes` se derivan de la fecha/hora de salida.
 
-Los `.csv` sin comprimir no se versionan; se generan al ejecutar los notebooks. Si se vuelven a ejecutar y cambian los datos, hay que volver a comprimirlos y subirlos.
+Todos los notebooks leen y escriben los conjuntos procesados en formato `.csv.gz`. Las dependencias de `requirements.txt` están fijadas a versiones exactas. Si se vuelve a ejecutar la preparación con una fuente distinta, cambian los conjuntos y se debe repetir el análisis de validación antes de la evaluación final.
+
+Los modelos `.joblib` que ya estaban en `models/` pertenecen a la ejecución anterior y no se regeneraron en esta corrección. No deben considerarse el modelo producido por el protocolo actualizado: al ejecutar el notebook 05 se genera `models/modelo_final.joblib`.
 
 ## Estructura
 
