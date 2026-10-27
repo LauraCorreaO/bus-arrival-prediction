@@ -30,11 +30,12 @@ fase-4/           Monitoreo básico
 ## Cómo ejecutar
 
 ```bash
+# Python 3.13.x
 pip install -r requirements.txt
 jupyter notebook fase-1/notebooks/
 ```
 
-Los notebooks de `fase-1/` se ejecutan en orden y de principio a fin; el detalle está en [`fase-1/README.md`](fase-1/README.md).
+Los notebooks de `fase-1/` se ejecutan en orden. El notebook 02 genera los archivos `train.csv.gz` y `test.csv.gz`; los notebooks 03 y 04 hacen análisis de validación interna sin consultar el test, y el notebook 05 selecciona el modelo con validación y evalúa el test reservado una sola vez. El detalle está en [`fase-1/README.md`](fase-1/README.md).
 
 ## Flujo de trabajo en GitHub
 
