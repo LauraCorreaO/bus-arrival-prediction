@@ -1,0 +1,3 @@
+nombre_sucursal,empresa,ruta_origen,subregi_n,clase_veh_culo,pasajeros,hora_salida_decimal,dia_semana,mes
+Sucursal Norte,Empresa A,Ruta 1,Subregion 1,Bus,25,8.5,1,3
+Sucursal Sur,Empresa B,Ruta 2,Subregion 2,Microbus,12,14.0,3,5
