@@ -28,3 +28,7 @@ outputs/
 
 # Carpetas temporales que deja train.py si se interrumpe al guardar una versión
 models/.*-*/
+
+# Versión de verificación entrenada en Docker: se documenta en el README,
+# no se entrega; las versiones entregadas son v1 y v2
+models/v-docker/

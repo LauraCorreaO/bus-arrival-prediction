@@ -138,7 +138,7 @@ def validate_types(df_clean: pd.DataFrame, feature_types: dict):
         if out.any():
             errors.append(f"'{name}' fuera de rango en las filas {_rows(out)}")
             continue
-        df_clean[name] = values.astype(float)
+        df_clean[name] = values.astype(float) if kind == "float" else values
 
     if errors:
         print("ERROR: Tipos de datos incompatibles en la entrada:\n  - " + "\n  - ".join(errors),

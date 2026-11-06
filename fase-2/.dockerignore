@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Entornos virtuales y cachés
+.venv/
+venv/
+env/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Credenciales
+.env
+.env.*
+
+# Artefactos y resultados: se montan como volúmenes, no se copian a la imagen
+models/
+outputs/
+
+# Datos completos: se montan desde el anfitrión (solo se copia el ejemplo)
+data/*
+!data/ejemplo_prediccion.csv
+
+# Documentación, Docker y archivos del sistema/editor
+README.md
+Dockerfile
+.dockerignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
