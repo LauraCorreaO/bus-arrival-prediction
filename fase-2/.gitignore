@@ -1,0 +1,30 @@
+# Entornos virtuales locales (se recrean con requirements.txt)
+.venv/
+venv/
+env/
+
+# Cachés de Python y de pytest
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Archivos temporales y de editor/sistema
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# Credenciales y variables de entorno: nunca se versionan
+.env
+.env.*
+
+# Datos completos descargados de datos.gov.co: se obtienen según el README
+data/*.csv
+data/*.csv.gz
+!data/ejemplo_prediccion.csv
+
+# Predicciones generadas al ejecutar predict.py
+outputs/
+
+# Carpetas temporales que deja train.py si se interrumpe al guardar una versión
+models/.*-*/

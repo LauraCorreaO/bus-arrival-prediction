@@ -1,3 +1,7 @@
 nombre_sucursal,empresa,ruta_origen,subregi_n,clase_veh_culo,pasajeros,hora_salida_decimal,dia_semana,mes
-Sucursal Norte,Empresa A,Ruta 1,Subregion 1,Bus,25,8.5,1,3
-Sucursal Sur,Empresa B,Ruta 2,Subregion 2,Microbus,12,14.0,3,5
+TERMINAL DEL SUR,TRANSPORTES JERICO,JERICO,SUR,AUTOMOVIL,1,14.0,6,7
+Terminal del Norte,SOTRAGUR S.A,GUARNE,Oriente,BUS,6,11.666666666666666,0,3
+Terminal del Sur,SOTRASABAR S.A,SANTA BARBARA,Sur,MICROBUS,2,5.0,5,8
+TERMINAL DEL NORTE,FLOTA GRANADA S.A.S,COCORNA,NORTE,MICROBUS,8,15.75,2,8
+Terminal del Sur,FLOTA MAGDALENA S.A.,BOGOTA-MEDELLIN,Norte,BUS,36,15.0,4,12
+Terminal del Norte,,GUARNE,Oriente,BUS,,7.5,1,5
