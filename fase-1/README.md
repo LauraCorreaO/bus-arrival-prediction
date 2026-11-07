@@ -72,5 +72,14 @@ Los modelos `.joblib` que ya estaban en `models/` pertenecen a la ejecución ant
 data/raw/        Datos descargados de la API (versionados comprimidos, .csv.gz)
 data/processed/  Conjuntos de entrenamiento y prueba (versionados comprimidos, .csv.gz)
 notebooks/       Notebooks ejecutables
-models/          Modelo entrenado
+models/          Modelos entrenados
 ```
+
+### Modelos guardados
+
+`models/` contiene dos modelos, cada uno el resultado de una línea de trabajo distinta:
+
+| Archivo | Estado |
+|---|---|
+| `modelo_random_forest.joblib` | **Oficial** — el que se usa en las siguientes fases del proyecto |
+| `modelo_hist_gradient_boosting.joblib` | Alternativa documentada |
