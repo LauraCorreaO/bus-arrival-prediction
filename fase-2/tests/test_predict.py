@@ -90,10 +90,21 @@ def test_predict_extra_columns(sample_input_data):
 
 # Test 4: Prueba con tmp_path (Entorno aislado)
 def test_predict_output_file_isolation(tmp_path, sample_input_data):
-    """Prueba la generación de datos en un entorno temporal aislado."""
+    """Predice con v1 en un directorio temporal: una predicción por fila y en el mismo orden."""
+    import predict
+
     input_file = tmp_path / "test_input.csv"
+    output_file = tmp_path / "salida" / "predicciones.csv"
     sample_input_data.to_csv(input_file, index=False)
     assert input_file.exists()
+
+    code = predict.main(["--model", str(FASE2_DIR / "models" / "v1" / "modelo.joblib"),
+                         "--input", str(input_file), "--output", str(output_file)])
+    assert code == 0
+    output = pd.read_csv(output_file)
+    assert len(output) == len(sample_input_data)
+    assert list(output["mes"]) == list(sample_input_data["mes"])
+    assert output["prediccion_duracion_horas"].notna().all()
 
 
 # Test 5: PRUEBA OBLIGATORIA CONTRA DATA LEAKAGE
