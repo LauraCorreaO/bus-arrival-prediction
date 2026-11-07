@@ -34,3 +34,8 @@ Thumbs.db
 
 !fase-1/data/raw/*.csv.gz
 !fase-1/data/processed/*.csv.gz
+
+# Fase 2: excepciones explícitas a *.csv y *.json para los archivos que sí se entregan
+!fase-2/data/ejemplo_prediccion.csv
+!fase-2/models/*/metrics.json
+!fase-2/models/*/metadata.json

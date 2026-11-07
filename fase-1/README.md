@@ -17,56 +17,30 @@ Predecir la **duración de un viaje** (en horas) entre su salida y su llegada a 
 
 Estimar el tiempo de viaje (ETA) de un vehículo que acaba de salir hacia la terminal, antes de que llegue.
 
-## Algoritmo utilizado
+## Selección y evaluación
 
-Se compararon cuatro algoritmos, en dos líneas de trabajo independientes:
+La selección de algoritmo y de inclusión de `pasajeros` se realiza con una validación interna derivada únicamente del conjunto de entrenamiento. El test reservado no se consulta en los notebooks 03 y 04. El notebook 05 cierra la selección por MAE de validación, reajusta el candidato con todo el entrenamiento y calcula una sola evaluación final en test.
 
-- `03-modelo-predictivo.ipynb`: `DummyRegressor` (mediana, modelo base), `Ridge` y `HistGradientBoostingRegressor`.
-- `04-modelado-lineal-y-random-forest.ipynb`: regresión lineal (modelo base de esa línea) y `RandomForestRegressor`, cada uno con y sin la variable `pasajeros`.
+Se reportan MAE, RMSE y R² sobre las duraciones observadas. Las etiquetas positivas largas se conservan; una duración superior a la mediana de ruta más 12 horas no basta para confirmar un error. No se sustituyen objetivos por medianas. Se excluyen filas sin una salida o duración calculable, duraciones no positivas como errores confirmados y salidas fuera del período documentado (2023–2025), usando exclusivamente la fecha de salida para esa exclusión.
 
-Los dos mejores de cada línea (HistGradientBoosting y Random Forest sin `pasajeros`) se enfrentaron entre sí, bajo las mismas condiciones, en `05-comparacion-final-modelos.ipynb`.
-
-**Modelo oficial: `RandomForestRegressor`** (sin `pasajeros`; 80 árboles, `min_samples_leaf=50`, `max_samples=0.5`), guardado en `models/modelo_random_forest.joblib`, por tener el MAE más bajo de los cuatro candidatos.
-
-`HistGradientBoostingRegressor` (`models/modelo_hist_gradient_boosting.joblib`) queda documentado como alternativa: su precisión es prácticamente la misma (RMSE y R² casi empatados) y el archivo es ~175 veces más liviano (0,27 MB frente a 47 MB) y algo más rápido al predecir, una ventaja a tener en cuenta para el despliegue en las fases siguientes.
-
-## Métrica empleada
-
-**MAE** (error absoluto medio, en horas) es la métrica principal: para estimar un tiempo de llegada es la más natural de interpretar ("el modelo se equivoca en promedio X horas") y los pocos viajes extremadamente largos la afectan menos que al RMSE. Se reportan también **RMSE** y **R²** como métricas secundarias. Las tres se calculan además solo sobre las filas con duración real (`duracion_corregida == False`), para confirmar que el resultado no depende de los valores que se reemplazaron en la preparación (notebook 02).
-
-## Principales resultados
-
-Sobre el conjunto de prueba (523.425 filas):
-
-| Modelo | MAE (h) | RMSE (h) | R² |
-|---|---|---|---|
-| Baseline (mediana) | 2,16 | 3,89 | -0,17 |
-| Regresión lineal | 0,43 | 0,86 | 0,94 |
-| HistGradientBoosting | 0,39 | 0,79 | 0,952 |
-| **Random Forest (oficial)** | **0,36** | 0,79 | 0,952 |
-
-El modelo oficial reduce el MAE del baseline en un 83 % (de 2,16 h a 0,36 h, unos 22 minutos de error promedio) y explica el 95 % de la variación de la duración del viaje.
+El patrón temporal de faltantes de `fecha_hora_salida_origen` (33,434 %) se informa como observado, pero no se interpreta por sí solo como evidencia de MCAR, MAR o MNAR. Se usa `fecha_salida` como fuente alternativa para derivar la salida cuando está disponible.
 
 ## Estado
 
 - [x] Exploración de datos — `notebooks/01-exploracion-datos.ipynb`
-- [x] Preparación de datos — `notebooks/02-preparacion-datos.ipynb`
-- [x] Modelo base y modelo predictivo — `notebooks/03-modelo-predictivo.ipynb`, `notebooks/04-modelado-lineal-y-random-forest.ipynb`, `notebooks/05-comparacion-final-modelos.ipynb`
-- [x] Guardado del modelo — `models/modelo_random_forest.joblib` (oficial) y `models/modelo_hist_gradient_boosting.joblib` (alternativa documentada)
+- [x] Preparación de datos reproducible — `notebooks/02-preparacion-datos.ipynb`
+- [x] Baseline, comparación y selección en validación — notebooks 03–05
+- [x] Implementación de la evaluación final y exportación del pipeline
 
 ## Cómo ejecutar
 
 ```bash
+# Python 3.13.x
 pip install -r requirements.txt
 jupyter notebook fase-1/notebooks/
 ```
 
-Ejecutar los notebooks **en orden y de principio a fin**:
-
-1. `01-exploracion-datos.ipynb` — descarga los datos completos a `data/raw/` (tarda unos minutos).
-2. `02-preparacion-datos.ipynb` — genera `train.csv` y `test.csv` en `data/processed/`.
-3. `03-modelo-predictivo.ipynb` y `04-modelado-lineal-y-random-forest.ipynb` — entrenan y comparan los candidatos de cada línea de trabajo, y guardan cada uno su mejor modelo en `models/`. Se pueden ejecutar en cualquier orden entre sí, uno depende del otro solo a través de `train.csv`/`test.csv`.
-4. `05-comparacion-final-modelos.ipynb` — carga los dos modelos ya entrenados (no reentrena nada) y elige el modelo oficial con la misma métrica y el mismo conjunto de prueba.
+Ejecutar los notebooks **en orden**: primero `01-exploracion-datos.ipynb` si se desea volver a descargar los datos, luego `02-preparacion-datos.ipynb` para generar los archivos de entrenamiento y prueba, después 03 y 04 para validación exploratoria, y por último 05 para selección y evaluación final.
 
 ### Datos incluidos en el repositorio
 
@@ -76,20 +50,21 @@ El repositorio incluye una copia de los datos, **comprimida** (`.csv.gz`) porque
 |---|---|
 | `data/raw/datos_completos.csv.gz` | Datos crudos completos descargados de la API (2.617.130 filas) |
 | `data/processed/train.csv.gz` | Conjunto de entrenamiento (80 %) |
-| `data/processed/test.csv.gz` | Conjunto de prueba (20 %) |
+| `data/processed/test.csv.gz` | Test reservado (20 %), usado solo en la evaluación final |
 
-Para modelar no hace falta ejecutar los notebooks 01 y 02: pandas lee los archivos comprimidos directamente.
+Los conjuntos procesados incluidos se pueden leer directamente para reproducir el análisis. Ejecuta 02 cada vez que regeneres la fuente o quieras incorporar cambios de preparación. Durante la selección solo se usa train; el acceso a test se deja al paso final del notebook 05.
 
 ```python
 import pandas as pd
 
 train = pd.read_csv("fase-1/data/processed/train.csv.gz")
-test = pd.read_csv("fase-1/data/processed/test.csv.gz")
 ```
 
-Las predictoras son `nombre_sucursal`, `empresa`, `ruta_origen`, `subregi_n`, `clase_veh_culo`, `pasajeros`, `hora_salida_decimal`, `dia_semana` y `mes`; el objetivo es `duracion_viaje_horas`. La columna `duracion_corregida` **no es una predictora** (se deriva del objetivo): solo sirve para evaluar el modelo sobre las filas no corregidas.
+Las predictoras son `nombre_sucursal`, `empresa`, `ruta_origen`, `subregi_n`, `clase_veh_culo`, `pasajeros`, `hora_salida_decimal`, `dia_semana` y `mes`; el objetivo observado es `duracion_viaje_horas`, en horas. `duracion_original` conserva una copia auditable de la etiqueta y nunca es predictora. Las fechas y horas de llegada se usan únicamente para calcular el objetivo y se excluyen de las entradas del modelo. `hora_salida_decimal`, `dia_semana` y `mes` se derivan de la fecha/hora de salida.
 
-Los `.csv` sin comprimir no se versionan; se generan al ejecutar los notebooks. Si se vuelven a ejecutar y cambian los datos, hay que volver a comprimirlos y subirlos.
+Todos los notebooks leen y escriben los conjuntos procesados en formato `.csv.gz`. Las dependencias de `requirements.txt` están fijadas a versiones exactas. Si se vuelve a ejecutar la preparación con una fuente distinta, cambian los conjuntos y se debe repetir el análisis de validación antes de la evaluación final.
+
+Los modelos `.joblib` que ya estaban en `models/` pertenecen a la ejecución anterior y no se regeneraron en esta corrección. No deben considerarse el modelo producido por el protocolo actualizado: al ejecutar el notebook 05 se genera `models/modelo_final.joblib`.
 
 ## Estructura
 
