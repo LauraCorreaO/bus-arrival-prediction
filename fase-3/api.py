@@ -7,6 +7,11 @@ Rutas:
     GET  /health   indica que la API está en ejecución.
     POST /predict  recibe un viaje (las 9 predictoras) y devuelve la duración estimada en horas.
 
+Errores de /predict (cuerpo {"error", "mensaje", "detalles": [{"campo", "problema"}]}):
+    400  el cuerpo no es un objeto JSON válido.
+    422  falta un campo obligatorio, tiene un tipo incompatible o está fuera de rango.
+    500  el modelo no se pudo cargar o falló al predecir.
+
 /predict reutiliza src/prediction.py, el mismo código de predict.py: carga la versión guardada
 y aplica su pipeline (normalización, imputación y codificación) sin reentrenar.
 """
@@ -16,11 +21,13 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
 
 from src.config import PREDICTORS
-from src.prediction import load_artifacts, predict_dataframe
+from src.prediction import InputValidationError, MissingColumnsError, PredictionError, load_artifacts, predict_dataframe
 
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
@@ -87,6 +94,73 @@ def active_version():
 def get_model(version):
     """Carga una versión una sola vez y la conserva en memoria. Un fallo no queda en caché."""
     return load_artifacts(MODELS_DIR / version)
+
+
+def error_response(status_code, error, detalles):
+    """Respuesta de error común: un mensaje legible y un detalle por campo."""
+    mensaje = "; ".join(detalle["problema"] for detalle in detalles)
+    return JSONResponse(status_code=status_code,
+                        content={"error": error, "mensaje": mensaje, "detalles": detalles})
+
+
+# Errores del cuerpo completo (no de un campo): se responden con 400
+BODY_ERRORS = {
+    "json_invalid": "El cuerpo de la solicitud no es un JSON válido",
+    "model_attributes_type": "El cuerpo debe ser un objeto JSON con las predictoras del viaje",
+    "missing": "Falta el cuerpo de la solicitud: envíe un objeto JSON con las predictoras del viaje",
+}
+
+
+def describe_field_error(field, error):
+    """Traduce un error de Pydantic a un mensaje en español que nombra el campo."""
+    kind, ctx = error["type"], error.get("ctx", {})
+    if kind == "missing":
+        return f"Falta el campo obligatorio '{field}'"
+    if kind == "string_type":
+        return f"'{field}' debe ser texto o null"
+    if kind == "int_type":
+        return f"'{field}' debe ser un número entero o null"
+    if kind == "float_type":
+        return f"'{field}' debe ser un número o null"
+    if kind == "greater_than_equal":
+        return f"'{field}' debe ser mayor o igual a {ctx['ge']}"
+    if kind == "less_than":
+        return f"'{field}' debe ser menor que {ctx['lt']}"
+    if kind == "less_than_equal":
+        return f"'{field}' debe ser menor o igual a {ctx['le']}"
+    return f"'{field}' no es válido: {error['msg']}"
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    body_error = next((e for e in errors if len(e["loc"]) == 1 or e["type"] == "json_invalid"), None)
+    if body_error is not None:
+        problem = BODY_ERRORS.get(body_error["type"], f"Cuerpo inválido: {body_error['msg']}")
+        return error_response(400, "Solicitud inválida", [{"campo": None, "problema": problem}])
+
+    # Un campo con tipo número acepta float o int; Pydantic informa un error por cada opción.
+    # Se deja un solo mensaje por campo.
+    detalles = {}
+    for error in errors:
+        field = str(error["loc"][1])
+        if field not in detalles:
+            kind = "float_type" if tuple(error["loc"][2:]) in (("float",), ("int",)) else error["type"]
+            detalles[field] = describe_field_error(field, {**error, "type": kind})
+    return error_response(422, "Entrada inválida",
+                          [{"campo": campo, "problema": problema} for campo, problema in detalles.items()])
+
+
+@app.exception_handler(InputValidationError)
+async def input_error_handler(request: Request, exc: InputValidationError):
+    campos = exc.columns if isinstance(exc, MissingColumnsError) else [None] * len(exc.errors)
+    return error_response(422, "Entrada inválida",
+                          [{"campo": campo, "problema": problema} for campo, problema in zip(campos, exc.errors)])
+
+
+@app.exception_handler(PredictionError)
+async def prediction_error_handler(request: Request, exc: PredictionError):
+    return error_response(500, "No se pudo generar la predicción", [{"campo": None, "problema": str(exc)}])
 
 
 @app.get("/health")
