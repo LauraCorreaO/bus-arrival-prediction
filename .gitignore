@@ -44,3 +44,7 @@ Thumbs.db
 !fase-3/data/ejemplo_prediccion.csv
 !fase-3/models/*/metrics.json
 !fase-3/models/*/metadata.json
+
+# Fase 3/4: registro de /predict (se genera al ejecutar; solo se entrega la muestra)
+fase-3/registro/
+!fase-4/muestra_registro.csv
