@@ -1,0 +1,125 @@
+{
+  "version": "v2",
+  "fecha_creacion": "2026-11-03T22:08:29+00:00",
+  "tipo_problema": "regresion",
+  "variable_objetivo": "duracion_viaje_horas",
+  "unidad_objetivo": "horas",
+  "algoritmo": "RandomForestRegressor",
+  "modelo_seleccionado": "Random Forest (sin pasajeros)",
+  "usa_pasajeros": false,
+  "variables_entrada": [
+    {
+      "nombre": "nombre_sucursal",
+      "tipo": "string"
+    },
+    {
+      "nombre": "empresa",
+      "tipo": "string"
+    },
+    {
+      "nombre": "ruta_origen",
+      "tipo": "string"
+    },
+    {
+      "nombre": "subregi_n",
+      "tipo": "string"
+    },
+    {
+      "nombre": "clase_veh_culo",
+      "tipo": "string"
+    },
+    {
+      "nombre": "pasajeros",
+      "tipo": "float"
+    },
+    {
+      "nombre": "hora_salida_decimal",
+      "tipo": "float"
+    },
+    {
+      "nombre": "dia_semana",
+      "tipo": "int"
+    },
+    {
+      "nombre": "mes",
+      "tipo": "int"
+    }
+  ],
+  "tratamiento_entrada": {
+    "nulos_categoricas": "se reemplazan por 'DESCONOCIDA' dentro del pipeline",
+    "nulos_numericas": "mediana del entrenamiento (SimpleImputer dentro del pipeline)",
+    "categorias_no_vistas": "Random Forest: código -1; regresión lineal: se ignoran en el one-hot",
+    "columnas_adicionales": "se descartan (remainder='drop')"
+  },
+  "parametros_modelo": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "criterion": "squared_error",
+    "max_depth": null,
+    "max_features": 1.0,
+    "max_leaf_nodes": null,
+    "max_samples": 0.3,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 100,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 40,
+    "n_jobs": -1,
+    "oob_score": false,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "parametros_random_forest_solicitados": {
+    "n_estimators": 40,
+    "min_samples_leaf": 100,
+    "max_samples": 0.3
+  },
+  "semilla": 42,
+  "datos": {
+    "fuente": "https://www.datos.gov.co/Transporte/Llegada-y-Salidas-de-Veh-culos-de-la-Terminal-de-T/pfsr-mdyi",
+    "archivo": "datos_completos.csv.gz",
+    "sha256": "a8d36ea5ed9cf7ed7999f8a224358db7b5c34d9a246f50c925bb738d8a767b4a",
+    "periodo_salidas": [
+      2023,
+      2025
+    ],
+    "exclusiones": {
+      "filas_crudas": 2617130,
+      "sin_salida": 5,
+      "salida_fuera_de_periodo": 45,
+      "sin_duracion": 5,
+      "duracion_no_positiva": 209,
+      "total_excluidas": 253,
+      "filas_conservadas": 2616877
+    },
+    "filas_usadas": 2616877,
+    "muestra_max_rows": null
+  },
+  "separacion": {
+    "estrategia": "aleatoria train/test; selección con validación interna derivada solo de train; reajuste con todo train y una única evaluación en test",
+    "test_size": 0.2,
+    "val_size": 0.2,
+    "filas_train": 2093501,
+    "filas_test": 523376,
+    "filas_train_interno": 1674800,
+    "filas_validacion": 418701,
+    "regla_pasajeros": "se incluye si mejora la MAE de validación al menos 1%"
+  },
+  "metrica_evaluacion": "MAE (principal), RMSE y R², en horas",
+  "entorno": {
+    "python": "3.13.5",
+    "pandas": "3.0.3",
+    "numpy": "2.4.1",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "dependencias": "fase-2/requirements.txt"
+  },
+  "codigo": {
+    "commit": {
+      "hash": "5e150753850eae9554b5b29bea513100b84e9429",
+      "cambios_sin_commit": true
+    }
+  }
+}

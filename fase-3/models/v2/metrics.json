@@ -1,0 +1,62 @@
+{
+  "version": "v2",
+  "metrica_principal": "mae",
+  "unidad": "horas",
+  "test": {
+    "modelo": {
+      "nombre": "Random Forest (sin pasajeros)",
+      "mae": 0.44532856606844295,
+      "rmse": 3.493179189612993,
+      "r2": 0.5105485562958982
+    },
+    "baseline": {
+      "nombre": "Baseline (mediana)",
+      "mae": 2.210387592603915,
+      "rmse": 5.229229369631424,
+      "r2": -0.09683997155795221
+    },
+    "reduccion_mae_vs_baseline_pct": 79.85291957127617
+  },
+  "validacion": [
+    {
+      "modelo": "Baseline (mediana)",
+      "algoritmo": "baseline",
+      "usa_pasajeros": false,
+      "mae": 2.2141603037330535,
+      "rmse": 11.462503541998979,
+      "r2": -0.018748817875793078
+    },
+    {
+      "modelo": "Regresión lineal (con pasajeros)",
+      "algoritmo": "linear",
+      "usa_pasajeros": true,
+      "mae": 0.5050349428329527,
+      "rmse": 10.779011286292397,
+      "r2": 0.09912195009490277
+    },
+    {
+      "modelo": "Regresión lineal (sin pasajeros)",
+      "algoritmo": "linear",
+      "usa_pasajeros": false,
+      "mae": 0.504948637568013,
+      "rmse": 10.778985868624842,
+      "r2": 0.09912619875763706
+    },
+    {
+      "modelo": "Random Forest (con pasajeros)",
+      "algoritmo": "random_forest",
+      "usa_pasajeros": true,
+      "mae": 0.4981195820266768,
+      "rmse": 10.784041720160129,
+      "r2": 0.09828089616104185
+    },
+    {
+      "modelo": "Random Forest (sin pasajeros)",
+      "algoritmo": "random_forest",
+      "usa_pasajeros": false,
+      "mae": 0.46477904372491907,
+      "rmse": 10.776520158221679,
+      "r2": 0.09953830428749832
+    }
+  ]
+}

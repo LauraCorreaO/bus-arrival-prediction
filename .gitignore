@@ -39,3 +39,8 @@ Thumbs.db
 !fase-2/data/ejemplo_prediccion.csv
 !fase-2/models/*/metrics.json
 !fase-2/models/*/metadata.json
+
+# Fase 3: mismo criterio que en la fase 2
+!fase-3/data/ejemplo_prediccion.csv
+!fase-3/models/*/metrics.json
+!fase-3/models/*/metadata.json
