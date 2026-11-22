@@ -8,13 +8,18 @@
 
 ## Inicio con el registro habilitado (desde `fase-3/`)
 
+Primero construyan la imagen como se indica en «Construir y ejecutar con Docker» de `fase-3/README.md`:
+
+```powershell
+docker build -t bus-api:fase3 .
+```
+
 ```powershell
 docker run --rm -p 8000:8000 -v "${PWD}/models:/app/models" -v "${PWD}/registro:/app/registro" -e MODELO_VERSION=v1 bus-api:fase3
 ```
 
 El registro persistente queda en `fase-3/registro/solicitudes.csv` del anfitrión (`/app/registro/solicitudes.csv` en el contenedor).
 Sin Docker se escribe en la misma ruta, o en la que indique `REGISTRO_PATH`.
-
 ```powershell
 python fase-4/monitoreo.py fase-3/registro/solicitudes.csv
 ```
