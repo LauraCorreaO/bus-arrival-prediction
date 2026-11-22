@@ -6,9 +6,11 @@ Inicio (desde fase-3):
 Rutas:
     GET  /health   indica que la API está en ejecución.
     POST /predict  recibe un viaje (las 9 predictoras) y devuelve la duración estimada en horas.
+    POST /train    entrena una nueva versión del modelo con identificador libre sin sobrescribir.
 
-Errores de /predict (cuerpo {"error", "mensaje", "detalles": [{"campo", "problema"}]}):
-    400  el cuerpo no es un objeto JSON válido.
+Errores de /predict y /train (cuerpo {"error", "mensaje", "detalles": [{"campo", "problema"}]}):
+    400  el cuerpo no es un objeto JSON válido o no se encuentra el archivo de datos.
+    409  el identificador de versión ya existe (no se sobrescribe).
     422  falta un campo obligatorio, tiene un tipo incompatible o está fuera de rango.
     500  el modelo no se pudo cargar o falló al predecir.
 
@@ -26,11 +28,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
 
-from src.config import PREDICTORS
+from src.config import DEFAULT_RF_PARAMS, DEFAULT_SEED, DEFAULT_TEST_SIZE, DEFAULT_VAL_SIZE, PREDICTORS
+from src.data import DataValidationError
 from src.prediction import InputValidationError, MissingColumnsError, PredictionError, load_artifacts, predict_dataframe
+from src.versioning import VersionExistsError
+from train import train_model
 
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
+DEFAULT_DATA_PATH = BASE_DIR / "data" / "datos_completos.csv.gz"
 DEFAULT_VERSION = "v1"
 
 # Una categoría se envía como texto y un número como número. Todas las claves son obligatorias,
@@ -76,6 +82,35 @@ assert list(Viaje.model_fields) == PREDICTORS, "Viaje no coincide con src.config
 class Prediccion(BaseModel):
     prediccion: float = Field(description="Duración estimada del viaje, en horas")
     version: str = Field(description="Versión del modelo que produjo la predicción")
+
+
+class EntrenamientoSolicitud(BaseModel):
+    """Parámetros para entrenar una nueva versión del modelo."""
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={"examples": [{
+            "version": "v2",
+            "data": "data/datos_completos.csv.gz",
+            "seed": 42,
+            "max_rows": 5000,
+        }]},
+    )
+
+    version: Annotated[StrictStr, Field(min_length=1, description="Identificador único de la nueva versión, p. ej. v2")]
+    data: Annotated[Optional[StrictStr], Field(default=None, description="Ruta al CSV crudo (por defecto data/datos_completos.csv.gz)")] = None
+    seed: Annotated[StrictInt, Field(default=DEFAULT_SEED, description="Semilla aleatoria")] = DEFAULT_SEED
+    test_size: Annotated[StrictFloat, Field(gt=0, lt=1, default=DEFAULT_TEST_SIZE)] = DEFAULT_TEST_SIZE
+    val_size: Annotated[StrictFloat, Field(gt=0, lt=1, default=DEFAULT_VAL_SIZE)] = DEFAULT_VAL_SIZE
+    n_estimators: Annotated[StrictInt, Field(ge=1, default=DEFAULT_RF_PARAMS["n_estimators"])] = DEFAULT_RF_PARAMS["n_estimators"]
+    min_samples_leaf: Annotated[StrictInt, Field(ge=1, default=DEFAULT_RF_PARAMS["min_samples_leaf"])] = DEFAULT_RF_PARAMS["min_samples_leaf"]
+    max_samples: Annotated[StrictFloat, Field(gt=0, le=1, default=DEFAULT_RF_PARAMS["max_samples"])] = DEFAULT_RF_PARAMS["max_samples"]
+    max_rows: Annotated[Optional[StrictInt], Field(ge=100, default=None, description="Muestra opcional para entrenamientos rápidos")] = None
+
+
+class EntrenamientoRespuesta(BaseModel):
+    version: str = Field(description="Identificador de la versión entrenada y guardada")
+    mensaje: str = Field(description="Confirmación del entrenamiento")
 
 
 app = FastAPI(
@@ -163,6 +198,11 @@ async def prediction_error_handler(request: Request, exc: PredictionError):
     return error_response(500, "No se pudo generar la predicción", [{"campo": None, "problema": str(exc)}])
 
 
+@app.exception_handler(VersionExistsError)
+async def version_exists_handler(request: Request, exc: VersionExistsError):
+    return error_response(409, "Versión existente", [{"campo": "version", "problema": str(exc)}])
+
+
 @app.get("/health")
 def health():
     return {"estado": "en ejecución"}
@@ -174,3 +214,41 @@ def predict(viaje: Viaje):
     model, metadata = get_model(version)
     _, predictions = predict_dataframe(model, metadata, pd.DataFrame([viaje.model_dump()]))
     return Prediccion(prediccion=float(predictions[0]), version=metadata.get("version", version))
+
+
+@app.post("/train", response_model=EntrenamientoRespuesta, status_code=201)
+def train_endpoint(solicitud: EntrenamientoSolicitud):
+    data_path = Path(solicitud.data) if solicitud.data else DEFAULT_DATA_PATH
+    if not data_path.is_absolute():
+        data_path = BASE_DIR / data_path
+
+    if not data_path.is_file():
+        return error_response(
+            400,
+            "Datos no encontrados",
+            [{"campo": "data", "problema": f"No existe el archivo de datos: {data_path}"}],
+        )
+
+    try:
+        version_creada = train_model(
+            data_path=data_path,
+            version=solicitud.version,
+            output_dir=MODELS_DIR,
+            seed=solicitud.seed,
+            test_size=solicitud.test_size,
+            val_size=solicitud.val_size,
+            n_estimators=solicitud.n_estimators,
+            min_samples_leaf=solicitud.min_samples_leaf,
+            max_samples=solicitud.max_samples,
+            max_rows=solicitud.max_rows,
+        )
+    except ValueError as exc:
+        campo = "version" if "Identificador de versión inválido" in str(exc) else None
+        return error_response(422, "Parámetros de entrenamiento inválidos", [{"campo": campo, "problema": str(exc)}])
+    except DataValidationError as exc:
+        return error_response(422, "Datos de entrenamiento inválidos", [{"campo": "data", "problema": str(exc)}])
+
+    return EntrenamientoRespuesta(
+        version=version_creada,
+        mensaje=f"Versión '{version_creada}' entrenada y guardada correctamente",
+    )
