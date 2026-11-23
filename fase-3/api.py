@@ -6,18 +6,25 @@ Inicio (desde fase-3):
 Rutas:
     GET  /health   indica que la API está en ejecución.
     POST /predict  recibe un viaje (las 9 predictoras) y devuelve la duración estimada en horas.
-    POST /train    entrena una nueva versión del modelo con identificador libre sin sobrescribir.
+    POST /train    entrena una versión nueva (cuerpo opcional; sin "version" genera el siguiente vN) sin sobrescribir.
 
 Errores de /predict y /train (cuerpo {"error", "mensaje", "detalles": [{"campo", "problema"}]}):
     400  el cuerpo no es un objeto JSON válido o no se encuentra el archivo de datos.
     409  el identificador de versión ya existe (no se sobrescribe).
     422  falta un campo obligatorio, tiene un tipo incompatible o está fuera de rango.
-    500  el modelo no se pudo cargar o falló al predecir.
+    500  el modelo falló al predecir.
+    503  la versión configurada (MODELO_VERSION) no existe o no se pudo cargar.
+
+Configuración por variables de entorno:
+    MODELO_VERSION  versión con la que predice /predict (por defecto v1).
+    MODELS_DIR      carpeta de versiones (por defecto models/ junto a api.py).
+    REGISTRO_PATH   CSV del registro de /predict (por defecto registro/solicitudes.csv).
 
 /predict reutiliza src/prediction.py, el mismo código de predict.py: carga la versión guardada
 y aplica su pipeline (normalización, imputación y codificación) sin reentrenar.
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Optional
@@ -30,7 +37,10 @@ from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, Stric
 
 from src.config import DEFAULT_RF_PARAMS, DEFAULT_SEED, DEFAULT_TEST_SIZE, DEFAULT_VAL_SIZE, PREDICTORS
 from src.data import DataValidationError
-from src.prediction import InputValidationError, MissingColumnsError, PredictionError, load_artifacts, predict_dataframe
+from src.prediction import (InputValidationError, MissingColumnsError, ModelNotAvailableError, PredictionError,
+                            load_artifacts, predict_dataframe)
+from src.registro import registrar
+from src.versioning import VERSION_PATTERN
 from src.versioning import VersionExistsError
 from train import train_model
 
@@ -90,14 +100,15 @@ class EntrenamientoSolicitud(BaseModel):
     model_config = ConfigDict(
         extra="ignore",
         json_schema_extra={"examples": [{
-            "version": "v2",
+            "version": "v4",
             "data": "data/datos_completos.csv.gz",
             "seed": 42,
             "max_rows": 5000,
         }]},
     )
 
-    version: Annotated[StrictStr, Field(min_length=1, description="Identificador único de la nueva versión, p. ej. v2")]
+    version: Annotated[Optional[StrictStr], Field(default=None, min_length=1,
+                       description="Identificador de la nueva versión; si se omite se genera el siguiente vN libre")] = None
     data: Annotated[Optional[StrictStr], Field(default=None, description="Ruta al CSV crudo (por defecto data/datos_completos.csv.gz)")] = None
     seed: Annotated[StrictInt, Field(default=DEFAULT_SEED, description="Semilla aleatoria")] = DEFAULT_SEED
     test_size: Annotated[StrictFloat, Field(gt=0, lt=1, default=DEFAULT_TEST_SIZE)] = DEFAULT_TEST_SIZE
@@ -121,14 +132,44 @@ app = FastAPI(
 
 
 def active_version():
-    """Versión con la que predice la API."""
-    return DEFAULT_VERSION
+    """Versión con la que predice la API: variable de entorno MODELO_VERSION (por defecto v1)."""
+    return os.environ.get("MODELO_VERSION", DEFAULT_VERSION)
+
+
+def models_dir():
+    """Carpeta de versiones: variable de entorno MODELS_DIR (por defecto models/ junto a api.py)."""
+    return Path(os.environ.get("MODELS_DIR", MODELS_DIR))
+
+
+def get_model(version):
+    return _load_model(str(models_dir()), version)
 
 
 @lru_cache(maxsize=4)
-def get_model(version):
+def _load_model(directory, version):
     """Carga una versión una sola vez y la conserva en memoria. Un fallo no queda en caché."""
-    return load_artifacts(MODELS_DIR / version)
+    if not VERSION_PATTERN.match(version):
+        raise ModelNotAvailableError(f"Identificador de versión inválido en MODELO_VERSION: {version!r}")
+    return load_artifacts(Path(directory) / version)
+
+
+@app.middleware("http")
+async def registrar_predicciones(request: Request, call_next):
+    """Fase 4: una fila del registro por cada intento de /predict, incluidos los rechazos.
+
+    El middleware envuelve también a los manejadores de error (RequestValidationError incluido),
+    así que el 400/422 que devuelven queda registrado con el código real de la respuesta.
+    """
+    if request.url.path != "/predict":
+        return await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        registrar(500, getattr(request.state, "version", None))
+        raise
+    registrar(response.status_code, getattr(request.state, "version", None),
+              getattr(request.state, "prediccion", None) if response.status_code == 200 else None)
+    return response
 
 
 def error_response(status_code, error, detalles):
@@ -193,6 +234,15 @@ async def input_error_handler(request: Request, exc: InputValidationError):
                           [{"campo": campo, "problema": problema} for campo, problema in zip(campos, exc.errors)])
 
 
+@app.exception_handler(ModelNotAvailableError)
+async def model_unavailable_handler(request: Request, exc: ModelNotAvailableError):
+    disponibles = sorted(p.name for p in models_dir().glob("*") if (p / "modelo.joblib").is_file())
+    return error_response(503, "Modelo no disponible", [{"campo": None, "problema": (
+        f"La versión configurada '{active_version()}' no está disponible ({exc}). "
+        f"Versiones disponibles: {', '.join(disponibles) or 'ninguna'}. "
+        "Seleccione una con la variable de entorno MODELO_VERSION y reinicie la API.")}])
+
+
 @app.exception_handler(PredictionError)
 async def prediction_error_handler(request: Request, exc: PredictionError):
     return error_response(500, "No se pudo generar la predicción", [{"campo": None, "problema": str(exc)}])
@@ -209,15 +259,27 @@ def health():
 
 
 @app.post("/predict", response_model=Prediccion)
-def predict(viaje: Viaje):
+def predict(viaje: Viaje, request: Request):
     version = active_version()
     model, metadata = get_model(version)
+    request.state.version = metadata.get("version", version)
     _, predictions = predict_dataframe(model, metadata, pd.DataFrame([viaje.model_dump()]))
-    return Prediccion(prediccion=float(predictions[0]), version=metadata.get("version", version))
+    request.state.prediccion = float(predictions[0])
+    return Prediccion(prediccion=request.state.prediccion, version=request.state.version)
+
+
+def next_version_id(directory):
+    """Siguiente identificador vN que no existe en la carpeta de versiones (v1, v2 -> v3)."""
+    directory = Path(directory)
+    numeros = [int(p.name[1:]) for p in directory.glob("v*") if p.name[1:].isdigit()] if directory.is_dir() else []
+    return f"v{max(numeros, default=0) + 1}"
 
 
 @app.post("/train", response_model=EntrenamientoRespuesta, status_code=201)
-def train_endpoint(solicitud: EntrenamientoSolicitud):
+def train_endpoint(solicitud: Optional[EntrenamientoSolicitud] = None):
+    # El cuerpo es opcional: sin cuerpo (o con {}) se usan los datos, la semilla y los
+    # parámetros de src/config.py y se genera un identificador disponible.
+    solicitud = solicitud or EntrenamientoSolicitud()
     data_path = Path(solicitud.data) if solicitud.data else DEFAULT_DATA_PATH
     if not data_path.is_absolute():
         data_path = BASE_DIR / data_path
@@ -232,8 +294,8 @@ def train_endpoint(solicitud: EntrenamientoSolicitud):
     try:
         version_creada = train_model(
             data_path=data_path,
-            version=solicitud.version,
-            output_dir=MODELS_DIR,
+            version=solicitud.version or next_version_id(models_dir()),
+            output_dir=models_dir(),
             seed=solicitud.seed,
             test_size=solicitud.test_size,
             val_size=solicitud.val_size,

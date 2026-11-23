@@ -1,0 +1,25 @@
+# Entornos virtuales y cachés
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Credenciales
+.env
+.env.*
+
+# Datos completos: se copian o montan desde fase-1/data/raw (ver README)
+data/*.csv
+data/*.csv.gz
+!data/ejemplo_prediccion.csv
+
+# Predicciones de predict.py
+outputs/
+
+# Registro de /predict (fase 4): se genera al ejecutar la API; la muestra está en fase-4/
+registro/
+
+# Carpetas temporales que deja train.py si se interrumpe al guardar una versión
+models/.*-*/
